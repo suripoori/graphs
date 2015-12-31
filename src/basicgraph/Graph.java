@@ -2,11 +2,14 @@ package basicgraph;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import util.GraphLoader;
 
@@ -122,7 +125,37 @@ public abstract class Graph {
 	 */
 	public List<Integer> degreeSequence() {
 		// XXX: Implement in part 1 of week 1
-		return null;
+		List<Integer> degreeSeq = new ArrayList<Integer>();
+		HashMap<Integer, Integer> numNeighbors = new HashMap<Integer, Integer>();
+		for (int i=0; i<numVertices; i++){
+			numNeighbors.put(i, getNeighbors(i).size() + getInNeighbors(i).size());
+		}
+		SortedSet<Map.Entry<Integer,Integer>> vertexDegrees = entriesSortedByValues(numNeighbors); 
+		for (Map.Entry<Integer, Integer> vertex : vertexDegrees){
+			degreeSeq.add(vertex.getValue());
+		}
+		return degreeSeq;
+	}
+	
+	//Static method which takes in a map<K,V> and returns a sortedSet<Entry<K,V>>
+	//Sorted by descending order
+	static <K,V extends Comparable<? super V>>
+	SortedSet<Map.Entry<K,V>> entriesSortedByValues(Map<K,V> map) {
+	    SortedSet<Map.Entry<K,V>> sortedEntries = new TreeSet<Map.Entry<K,V>>(
+	        new Comparator<Map.Entry<K,V>>() {
+	            @Override public int compare(Map.Entry<K,V> e1, Map.Entry<K,V> e2) {
+	                int res = e1.getValue().compareTo(e2.getValue());
+	                if (res == -1){
+	                	return 1;
+	                }
+	                else {
+	                	return -1;
+	                }
+	            }
+	        }
+	    );
+	    sortedEntries.addAll(map.entrySet());
+	    return sortedEntries;
 	}
 	
 	/**
@@ -228,7 +261,7 @@ public abstract class Graph {
 
 	
 	public static void main (String[] args) {
-		GraphLoader.createIntersectionsFile("data/maps/myucsd.map", "data/intersections/myucsd.intersections");
+		//GraphLoader.createIntersectionsFile("data/maps/myucsd.map", "data/intersections/myucsd.intersections");
 		
 
 		// For testing of Part 1 functionality
@@ -249,6 +282,17 @@ public abstract class Graph {
 		System.out.println("\n****");
 		
 		// You can test with real road data here.  Use the data files in data/maps
+		System.out.println("Loading graphs based on real data...");
+		System.out.println("Goal: use degree sequence to analyse graphs.");
+		
+		System.out.println("****");
+		System.out.println("Roads / intersections:");
+		graphFromFile = new GraphAdjList();
+		GraphLoader.loadRoadMap("data/maps/new_york.map", graphFromFile);
+		System.out.println(graphFromFile);
+		System.out.println("****");
+
+		System.out.println("\n****");
 		
 		System.out.println("Flight data:");
 		GraphAdjList airportGraph = new GraphAdjList();
