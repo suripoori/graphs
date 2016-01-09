@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -35,6 +36,7 @@ public class MapGraph {
 	private Map<GeographicPoint,ArrayList<RoadSegment>> adjListsMap;
 	private int numVertices;
 	private int numEdges;
+	private enum searchType {DIJKSTRA, ASTAR};
 	/** 
 	 * Create a new empty MapGraph 
 	 */
@@ -207,11 +209,7 @@ public class MapGraph {
 										  GeographicPoint goal, Consumer<GeographicPoint> nodeSearched)
 	{
 		// TODO: Implement this method in WEEK 3
-
-		// Hook for visualization.  See writeup.
-		//nodeSearched.accept(next.getLocation());
-		
-		return null;
+		return heuristicSearch(start, goal, nodeSearched, searchType.DIJKSTRA);
 	}
 
 	/** Find the path from start to goal using A-Star search
@@ -239,18 +237,67 @@ public class MapGraph {
 											 GeographicPoint goal, Consumer<GeographicPoint> nodeSearched)
 	{
 		// TODO: Implement this method in WEEK 3
-		
-		// Hook for visualization.  See writeup.
-		//nodeSearched.accept(next.getLocation());
-		
-		return null;
+		return heuristicSearch(start, goal, nodeSearched, searchType.ASTAR);
 	}
 
+	private List<GeographicPoint> heuristicSearch(GeographicPoint start, 
+			GeographicPoint goal, Consumer<GeographicPoint> nodeSearched, 
+			searchType type)
+	{	
+		if ((!adjListsMap.containsKey(start)) || (!adjListsMap.containsKey(goal))) {
+			System.out.println("The point " + start + " or the point " + goal + 
+					" do not exist in this graph");
+			return(null);
+		}
+		PriorityQueue<costOfVertex> pq = new PriorityQueue<costOfVertex>();
+		HashSet<GeographicPoint> visited = new HashSet<GeographicPoint>();
+		HashMap<GeographicPoint, GeographicPoint> parent = new HashMap<GeographicPoint, GeographicPoint>();
+		HashMap<GeographicPoint, costOfVertex> vertexCosts = initializeVertexCosts();
+		costOfVertex s = new costOfVertex(0, start);
+		vertexCosts.put(start, s);
+		pq.add(s);
+		int numNodesSearched = 0;
+		// Keep looping until we reach the goal or the priority queue is empty
+		while(!pq.isEmpty()){
+			costOfVertex n = pq.remove();
+			GeographicPoint next = n.getVertex(); 
+			if(!visited.contains(next)){
+				numNodesSearched++;
+				visited.add(next);
+				//Hook for visualization.  See writeup.
+				nodeSearched.accept(next);
+				if (next.equals(goal)){
+					System.out.println(numNodesSearched);
+					return reconstructPath(parent, start, goal);
+				}
+				for (RoadSegment r : getNeighbors(next)){
+					GeographicPoint neighbor = r.getOtherPoint(next);
+					if (!visited.contains(neighbor)){
+						if (r.getLength() + n.getCost() < vertexCosts.get(neighbor).getCost()){
+							double totalCost = 0;
+							if (type == searchType.DIJKSTRA){
+								totalCost = n.getCost() + r.getLength();
+							}
+							else if (type == searchType.ASTAR){
+								totalCost = n.getCost() + r.getLength() + neighbor.distance(goal);
+							}
+							costOfVertex updatedCost = new costOfVertex(totalCost, neighbor);
+							pq.add(updatedCost);
+							parent.put(neighbor, next);
+							vertexCosts.put(neighbor, updatedCost);
+						}
+					}
+				}
+			}
+		}
+		System.out.println(numNodesSearched);
+		return(null);
+	}
 	
 	
 	public static void main(String[] args)
 	{
-		System.out.print("Making a new map...");
+		/*System.out.print("Making a new map...");
 		MapGraph theMap = new MapGraph();
 		System.out.print("DONE. \nLoading the map...");
 		GraphLoader.loadRoadMap("data/testdata/simpletest.map", theMap);
@@ -261,10 +308,10 @@ public class MapGraph {
 		
 		
 		List<GeographicPoint> route = theMap.bfs(start,end);
-		System.out.println(route);
+		System.out.println(route);*/
 		// You can use this method for testing.  
 		
-		/* Use this code in Week 3 End of Week Quiz
+		//Use this code in Week 3 End of Week Quiz
 		MapGraph theMap = new MapGraph();
 		System.out.print("DONE. \nLoading the map...");
 		GraphLoader.loadRoadMap("data/maps/utc.map", theMap);
@@ -276,8 +323,6 @@ public class MapGraph {
 		
 		List<GeographicPoint> route = theMap.dijkstra(start,end);
 		List<GeographicPoint> route2 = theMap.aStarSearch(start,end);
-
-		*/
 		
 	}
 	
@@ -297,5 +342,50 @@ public class MapGraph {
 		}
 		Collections.reverse(path);
 		return(path);
+	}
+	
+	/* A method which creates an empty hashmap and adds all the vertexes into it.
+	 * Its a map of GeographicPoint to costOfVertex
+	 */
+	private HashMap<GeographicPoint, costOfVertex> initializeVertexCosts(){
+		HashMap<GeographicPoint, costOfVertex> vertexCosts = new HashMap<GeographicPoint, costOfVertex>();
+		for(GeographicPoint vertex : getVertices()){
+			vertexCosts.put(vertex, new costOfVertex(Double.MAX_VALUE, vertex));
+		}
+		return(vertexCosts);
+	}
+	
+	/*A class to keep track of the heuristic cost of going to a vertex*/
+	private class costOfVertex implements Comparable<costOfVertex>{
+		private double cost;
+		private GeographicPoint vertex;
+		
+		public double getCost(){
+			return cost;
+		}
+
+		public GeographicPoint getVertex(){
+			return vertex;
+		}
+		
+		public void setCost(double cost){
+			this.cost = cost;
+		}
+		
+		public costOfVertex(double cost, GeographicPoint vertex){
+			this.cost = cost;
+			this.vertex = vertex;
+		}
+		
+		@Override
+		public int compareTo(costOfVertex o) {
+			// TODO Auto-generated method stub
+			if (o.getCost() == this.getCost()){
+				return(0);
+			}
+			else {
+				return this.getCost() > o.getCost() ? 1 : -1;
+			}
+		}
 	}
 }
