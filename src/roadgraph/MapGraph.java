@@ -63,7 +63,7 @@ public class MapGraph {
 	public Set<GeographicPoint> getVertices()
 	{
 		//TODO: Implement this method in WEEK 2
-		return adjListsMap.keySet();
+		return new HashSet<GeographicPoint>(adjListsMap.keySet());
 	}
 	
 	/**
