@@ -36,7 +36,24 @@ public class MapGraph {
 	private Map<GeographicPoint,ArrayList<RoadSegment>> adjListsMap;
 	private int numVertices;
 	private int numEdges;
-	private enum searchType {DIJKSTRA, ASTAR};
+	private enum searchType {
+		DIJKSTRA, 
+		ASTAR, 
+		DIJKSTRA_WITH_SPEED_LIMIT, 
+		ASTAR_WITH_SPEED_LIMIT
+	};
+	// Maintain a map of road types to speed limits in mph
+	private static final Map<String, Integer> speedLimits;
+	static
+	{
+		speedLimits = new HashMap<String, Integer>();
+		speedLimits.put("residential", 30);
+		speedLimits.put("motorway_link", 50);
+		speedLimits.put("motorway", 70);
+		speedLimits.put("tertiary", 35);
+		speedLimits.put("primary", 45);
+		speedLimits.put("secondary", 40);
+	}
 	/** 
 	 * Create a new empty MapGraph 
 	 */
@@ -225,6 +242,7 @@ public class MapGraph {
         return aStarSearch(start, goal, temp);
 	}
 	
+	
 	/** Find the path from start to goal using A-Star search
 	 * 
 	 * @param start The starting location
@@ -240,6 +258,70 @@ public class MapGraph {
 		return heuristicSearch(start, goal, nodeSearched, searchType.ASTAR);
 	}
 
+	/** Find the path from start to goal using Dijkstra's algorithm
+	 * taking speed limit into account
+	 * @param start The starting location
+	 * @param goal The goal location
+	 * @return The list of intersections that form the shortest path from 
+	 *   start to goal (including both start and goal).
+	 */
+	public List<GeographicPoint> dijkstraSpeedLimit(GeographicPoint start, GeographicPoint goal) {
+		// Dummy variable for calling the search algorithms
+		// You do not need to change this method.
+        Consumer<GeographicPoint> temp = (x) -> {};
+        return dijkstra(start, goal, temp);
+	}
+	
+	
+	/** Find the path from start to goal using Dijkstra search taking speed
+	 * limits into account
+	 * @param start The starting location
+	 * @param goal The goal location
+	 * @param nodeSearched A hook for visualization.  See assignment instructions for how to use it.
+	 * @return The list of intersections that form the shortest path from 
+	 *   start to goal (including both start and goal).
+	 */
+	public List<GeographicPoint> dijkstraSpeedLimit(GeographicPoint start,
+			GeographicPoint goal, Consumer<GeographicPoint> nodeSearched)
+	{
+		return heuristicSearch(start, goal, nodeSearched, searchType.DIJKSTRA_WITH_SPEED_LIMIT);
+	}
+	
+	
+	/** Find the path from start to goal using A-Star search with speed limit
+	 * 
+	 * @param start The starting location
+	 * @param goal The goal location
+	 * @return The list of intersections that form the shortest path from 
+	 *   start to goal (including both start and goal).
+	 */
+	public List<GeographicPoint> aStarSpeedLimit(GeographicPoint start, GeographicPoint goal) {
+		// Dummy variable for calling the search algorithms
+        Consumer<GeographicPoint> temp = (x) -> {};
+        return aStarSpeedLimit(start, goal, temp);
+	}
+	
+	
+	/** Find the path from start to goal using AStar search taking speed
+	 * limits into account
+	 * @param start The starting location
+	 * @param goal The goal location
+	 * @param nodeSearched A hook for visualization.  See assignment instructions for how to use it.
+	 * @return The list of intersections that form the shortest path from 
+	 *   start to goal (including both start and goal).
+	 */
+	public List<GeographicPoint> aStarSpeedLimit(GeographicPoint start,
+			GeographicPoint goal, Consumer<GeographicPoint> nodeSearched)
+	{
+		return heuristicSearch(start, goal, nodeSearched, searchType.ASTAR_WITH_SPEED_LIMIT);
+	}
+	
+	
+	// A private method which takes a type of search along with the start and goal
+	// The type of the search dictates the heuristic cost
+	// For Dijkstra, the cost of a point is the cost of parent plus the distance from parent
+	// For AStar, the cost of a point is the cost of parent plus the distance from parent plus
+	// the geometric distance between the point and the goal
 	private List<GeographicPoint> heuristicSearch(GeographicPoint start, 
 			GeographicPoint goal, Consumer<GeographicPoint> nodeSearched, 
 			searchType type)
@@ -274,13 +356,7 @@ public class MapGraph {
 					GeographicPoint neighbor = r.getOtherPoint(next);
 					if (!visited.contains(neighbor)){
 						if (r.getLength() + n.getCost() < vertexCosts.get(neighbor).getCost()){
-							double totalCost = 0;
-							if (type == searchType.DIJKSTRA){
-								totalCost = n.getCost() + r.getLength();
-							}
-							else if (type == searchType.ASTAR){
-								totalCost = n.getCost() + r.getLength() + neighbor.distance(goal);
-							}
+							double totalCost = vertexCost(n, r, neighbor, type, goal);
 							costOfVertex updatedCost = new costOfVertex(totalCost, neighbor);
 							pq.add(updatedCost);
 							parent.put(neighbor, next);
@@ -292,6 +368,33 @@ public class MapGraph {
 		}
 		System.out.println(numNodesSearched);
 		return(null);
+	}
+	
+	// Returns a cost of going to a particular vertex given it's parent and 
+	// the road segment connecting the parent and that vertex and 
+	// the type of the search the goal vertex
+	private double vertexCost(costOfVertex n, RoadSegment r, 
+			GeographicPoint neighbor, searchType type, GeographicPoint goal){
+		double totalCost = 0;
+		if (type == searchType.DIJKSTRA) {
+			totalCost = n.getCost() + r.getLength();
+		}
+		else if (type == searchType.ASTAR)  {
+			totalCost = n.getCost() + r.getLength() + neighbor.distance(goal);
+		}
+		else {
+			int speed = 35; //Setting default value as 35mph
+			if (speedLimits.get(r.getRoadType()) != null){
+				speed = speedLimits.get(r.getRoadType());
+			}
+			if (type == searchType.DIJKSTRA_WITH_SPEED_LIMIT){
+				totalCost = n.getCost() + r.getLength()/speed;
+			}
+			if (type == searchType.ASTAR_WITH_SPEED_LIMIT) {
+				totalCost = n.getCost() + r.getLength()/speed + neighbor.distance(goal)/speed;
+			}
+		}
+		return totalCost;
 	}
 	
 	
@@ -323,6 +426,8 @@ public class MapGraph {
 		
 		List<GeographicPoint> route = theMap.dijkstra(start,end);
 		List<GeographicPoint> route2 = theMap.aStarSearch(start,end);
+		List<GeographicPoint> route3 = theMap.dijkstraSpeedLimit(start,end);
+		List<GeographicPoint> route4 = theMap.aStarSpeedLimit(start, end);
 		
 	}
 	

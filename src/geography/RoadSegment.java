@@ -123,6 +123,9 @@ public class RoadSegment {
 		return null;
 	}
 
-
+	//Return the roadType
+	public String getRoadType(){
+		return this.roadType;
+	}
 	
 }
